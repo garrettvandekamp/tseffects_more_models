@@ -544,19 +544,19 @@ gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl,
 	}
 
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(coef(model)))) {
+	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
 		stop("x.vrbl not present in estimated model")
 	}
 	
-	if(!(all(names(y.vrbl) %in% names(coef(model)))) {
+	if(!(all(names(y.vrbl) %in% names(coef(model))))) {
 		stop("y.vrbl not present in estimated model")
 	}
 
-	if(!(all(names(x.d.vrbl) %in% names(coef(model)))) {
+	if(!(all(names(x.d.vrbl) %in% names(coef(model))))) {
 		stop("x.d.vrbl not present in estimated model")
 	}
 	
-	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(coef(model)))) {
+	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(coef(model))))) {
 		stop("y.d.vrbl not present in estimated model")
 	}
 }
@@ -2064,21 +2064,21 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	}
 	
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(coef(model)))) {
+	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
 		stop("x.vrbl not present in estimated model")
 	}
 
 	if(!is.null(y.vrbl)) {
-		if(!(all(names(y.vrbl) %in% names(coef(model)))) {
+		if(!(all(names(y.vrbl) %in% names(coef(model))))) {
 			stop("y.vrbl not present in estimated model")
 		}
 	}
 
-	if(!(all(names(z.vrbl) %in% names(coef(model)))) {
+	if(!(all(names(z.vrbl) %in% names(coef(model))))) {
 		stop("z.vrbl not present in estimated model")
 	}
 		
-	if(!(is.null(x.z.vrbl)) & !(all(names(x.z.vrbl) %in% names(coef(model)))) {
+	if(!(is.null(x.z.vrbl)) & !(all(names(x.z.vrbl) %in% names(coef(model))))) {
 		stop("x.z.vrbl not present in estimated model")
 	}	
 
