@@ -339,7 +339,7 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 	if(length(se.type)==1){
   		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
     		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+  		} else if (se.type=="const"){     #Check if model has a vcov() method
     		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
     
    			if (is.null(vcov_method)) {
@@ -511,7 +511,7 @@ gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl,
 	if(length(se.type)==1){
   		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
     		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+  		} else if (se.type=="const"){     #Check if model has a vcov() method
     		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
     
    			if (is.null(vcov_method)) {
@@ -2031,7 +2031,7 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	if(length(se.type)==1){
   		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
     		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+  		} else if (se.type=="const"){     #Check if model has a vcov() method
     		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
     
    			if (is.null(vcov_method)) {
