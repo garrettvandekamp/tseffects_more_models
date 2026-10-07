@@ -4,7 +4,6 @@
 
 # TO DO (next version):
 #   More robust README.md
-#   Include a wrapper for GECM(1,1) and ADL(1,1) (in levels) cases?
 #   Somehow test whether someone is using ts.effect.plot when they are also specifying an interaction
 #   Allow for varying levels of Z?
 #   Make sure that all of the formulae in the interaction SM are covered
@@ -23,8 +22,6 @@
 #    - glm()
 #    - tscount
 #    - spmle/ProbitSpatial
-#    - plm/splm (panel)
-#    - fixest
 #    - lme4
 #    - clustered standard errors from sandwich
 
@@ -117,7 +114,7 @@ NULL
 #		mpoly (for formula construction)
 #		car (for deltaMethod)
 #		ggplot2 (for plots)
-#		sandwich (for vcovHC)
+#		sandwich (for sandwich vcovHC)
 #		stats (for lm coef vcov)
 #		utils (for capture.output)
 
@@ -256,13 +253,13 @@ GDRF.dummy.checks <- function(effect.type, prediction.values, baseline.y, baseli
 #' @param d.y the order of differencing of the y variable in the ADL model
 #' @param inferences.x is the independent variable treated in levels or in differences?
 #' @param inferences.y are the inferences for the dependent variable expected in levels or in differences?
-#' @param the.coef the coefficient vector from the estimated ADL model
+#' @param model the estimated ADL model
 #' @param se.type the type of standard error calculated
 #' @param type whether the effects are estimated in the context of a GDRF
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
-adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.y, the.coef, se.type, type = NULL) {
+adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.y, model, se.type, type = NULL) {
 	effect.message <- ifelse(type == "GDTE", "treatment effect", 
 						ifelse(type == "GDRF", "shock history", "broken"))
 
@@ -331,18 +328,56 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 		}
 	}
 	
-	# test whether se.type is in that for vcov
-	if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")						
-	}	
+	# is there a coef() method for the model?
+	coef_method <- tryCatch(coef(model), error = function(e) NULL)
+
+	if (is.null(coef_method)) {
+  		stop("Invalid model. model does not have a valid coef() method.")
+	}
+
+	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
+	if(length(se.type)==1){
+  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
+    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
+  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
+    
+   			if (is.null(vcov_method)) {
+    			stop("Invalid model. model does not have a valid vcov() method.")
+    		}
+    
+  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
+    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+
+  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
+    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+		}
+    
+	} else { #Check and see if user provided a valid variance-covariance matrix
+  		if (!(is.matrix(se.type))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=length(coef(model))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		}
+	}
 	
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
 		stop("x.vrbl not present in estimated model")
 	}
 	
 	if(!is.null(y.vrbl)) {
-		if(!(all(names(y.vrbl) %in% names(the.coef)))) {
+		if(!(all(names(y.vrbl) %in% names(coef(model))))) {
 			stop("y.vrbl not present in estimated model")
 		}
 	}
@@ -362,7 +397,7 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 #' @param y.d.vrbl.d.y the order of differencing of the y variable of higher order of integration (typically first differences, 1) in a GECM model
 #' @param inferences.x is the independent variable treated in levels or in differences?
 #' @param inferences.y are the inferences for the dependent variable expected in levels or in differences?
-#' @param the.coef the coefficient vector from the estimated GECM model
+#' @param model the estimated GECM model
 #' @param se.type the type of standard error calculated
 #' @param type whether the effects are estimated in the context of a GDRF
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -370,7 +405,7 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 
 gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl, 
 							x.vrbl.d.x, y.vrbl.d.y, x.d.vrbl.d.x, y.d.vrbl.d.y, 
-							inferences.x, inferences.y, the.coef, se.type, type = NULL) {
+							inferences.x, inferences.y, model, se.type, type = NULL) {
 
 	effect.message <- ifelse(type == "GDTE", "treatment effect", 
 						ifelse(type == "GDRF", "shock history", "broken"))
@@ -465,25 +500,63 @@ gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl,
 		stop("In a GECM, inferences regarding the ", counter.x.message, " of x on y are automatically recovered in levels")
 	}
 
-	# test whether se.type is in that for vcov
-	if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")						
+	# Does the model have a coef() method?
+	coef_method <- tryCatch(coef(model), error = function(e) NULL)
+
+	if (is.null(coef_method)) {
+	  stop("Invalid model. model does not have a valid coef() method.")
+	}
+	
+	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
+	if(length(se.type)==1){
+  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
+    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
+  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
+    
+   			if (is.null(vcov_method)) {
+    			stop("Invalid model. model does not have a valid vcov() method.")
+    		}
+    
+  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
+    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+
+  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
+    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+		}
+    
+	} else { #Check and see if user provided a valid variance-covariance matrix
+  		if (!(is.matrix(se.type))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=length(coef(model))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		}
 	}
 
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(x.vrbl) %in% names(coef(model)))) {
 		stop("x.vrbl not present in estimated model")
 	}
 	
-	if(!(all(names(y.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(y.vrbl) %in% names(coef(model)))) {
 		stop("y.vrbl not present in estimated model")
 	}
 
-	if(!(all(names(x.d.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(x.d.vrbl) %in% names(coef(model)))) {
 		stop("x.d.vrbl not present in estimated model")
 	}
 	
-	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(the.coef)))) {
+	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(coef(model)))) {
 		stop("y.d.vrbl not present in estimated model")
 	}
 }
@@ -773,7 +846,7 @@ general.calculator <- function(d.x, d.y, h, limit, pulses) {
 #' Transform the GDRF formulae to fitted value formulae
 #' @param formulae the list of formulae from \code{general.calculator}
 #' @param d.y an integer for the order of differencing of the y variable in the ADL model
-#' @param model the \code{lm} model containing the model estimates
+#' @param model a linear regression model. While written with \code{lm} in mind, any linear model with valid \code{coef}, \code{vcov}, and \code{model.frame} methods will work.
 #' @param the.coef the coefficient vector from the estimated model
 #' @param y.vrbl a named vector of the (lagged) y variables and corresponding lag orders in the ADL model
 #' @param inferences.y whether the inferences for the dependent variable are in levels or differences. Must be one of \code{levels} or \code{differences}
@@ -1051,7 +1124,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 # --------- (5) GDRF.adl.plot -----------#
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for an autoregressive distributed lag (ADL) model
-#' @param model the \code{lm} model containing the ADL estimates
+#' @param model a linear regression model in (differenced) ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
 #' @param x.vrbl a named numeric vector in which the names correspond to an independent variable and its lags and the numbers correspond to the specific lag order of each variable
 #' @param y.vrbl a named numeric vector in which the names correspond to lags of the dependent variable and the numbers correspond to the specific lag order of each variable. Can be \code{NULL} if the model has no lagged dependent variables
 #' @param d.x an integer describing how many times the independent variable was differenced before model estimation
@@ -1066,7 +1139,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 #' @param shock.size the size of the shock to x in the units of x. Only used when \code{effect.type = "fitted"}; marginal effects are not scaled. Defaults to 1 (a marginal effect)
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default is \code{const}, but any argument to \code{vcovHC} from the \code{sandwich} package is accepted
+#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1074,7 +1147,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 #' @importFrom stats lm coef vcov qnorm
 #' @importFrom mpoly mp
 #' @importFrom car deltaMethod
-#' @importFrom sandwich vcovHC
+#' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -1131,9 +1204,6 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
 	...) {
 	
-	# Assign coefficients
-	the.coef <- coef(model)
-
 	########################################################################
 	# subfunctions for shared GDRF dummy check
 	########################################################################
@@ -1142,7 +1212,7 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 	########################################################################
 	# subfunctions for shared adl dummy check
 	########################################################################
-	adl.dummy.checks(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.y, the.coef, se.type, type = "GDRF")
+	adl.dummy.checks(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.y, model, se.type, type = "GDRF")
 
 	########################################################################
 	# specific to function: shock.history checks, assign shock.history, convert inferences to numeric, assign vcov, and replace _
@@ -1162,6 +1232,9 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 			stop("Invalid shock.history. shock.history must be one of pulse or step, or any as.numeric integer h representing the order of the GDRF")	
 		}
 	}
+
+	# Assign coefficients
+	the.coef <- coef(model)
 
 	# turn the shock.history into the argument h.order
 	h.order <- ifelse(shock.history %in% c("pulse", "impulse"), -1,
@@ -1186,8 +1259,16 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 		plot.d.x <- 0		
 	}
 	
-	the.vcov <- vcovHC(model, type = se.type)
-
+	if(se.type=="const"){
+	  the.vcov <- vcov(model)
+	} else if (se.type %in% c("HC", "HC0")) {
+	  the.vcov <- sandwich(model)
+	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
+	  the.vcov <- vcovHC(model, type = se.type)
+	} else {
+	  the.vcov <- se.type
+	}
+		
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
 	mpoly.subber(env = environment())
@@ -1367,13 +1448,13 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 # ----------- (5.1) adl.plot ----------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for an autoregressive distributed lag (ADL) model, assuming the underlying model is in levels (\code{d.x} = \code{d.y} = 0) and the user wants a marginal effect (the untransformed GDRF). (This is just a wrapper for \code{GDRF.adl.plot} with simplifying assumptions)
-#' @param model the \code{lm} model containing the ADL estimates
+#' @param model a linear regression model in ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
 #' @param x.vrbl a named numeric vector in which the names correspond to an independent variable and its lags and the numbers correspond to the specific lag order of each variable
 #' @param y.vrbl a named numeric vector in which the names correspond to lags of the dependent variable and the numbers correspond to the specific lag order of each variable. Can be \code{NULL} if the model has no lagged dependent variables
 #' @param shock.history the desired shock history. \code{shock.history} determines the shock history (h) (which can be expressed as an integer) that will be applied to the independent variable. -1 represents a pulse (Impulse Response Function). 0 represents a step (Step Response Function). These can also be specified via \code{pulse} and \code{step}. For others, see Vande Kamp, Jordan, and Rajan. The default is \code{pulse}
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default is \code{const}, but any argument to \code{vcovHC} from the \code{sandwich} package is accepted
+#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1381,7 +1462,7 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 #' @importFrom stats lm coef vcov
 #' @importFrom mpoly mp
 #' @importFrom car deltaMethod
-#' @importFrom sandwich vcovHC
+#' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -1422,7 +1503,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 # -------- (6) GDRF.gecm.plot ---------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for a Generalized Error Correction Model (GECM)
-#' @param model the \code{lm} model containing the GECM estimates
+#' @param model a linear regression model in GECM form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
 #' @param x.vrbl a named numeric vector of the x variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param y.vrbl a named numeric vector of the (lagged) y variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param x.vrbl.d.x the order of differencing of the x variable (of the lower level of differencing, usually in levels d = 0) in the GECM model
@@ -1441,7 +1522,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @param shock.size the size of the shock to x in the units of x. Only used when \code{effect.type = "fitted"}; marginal effects are not scaled. Defaults to 1 (a marginal effect)
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default is \code{const}, but any argument to \code{vcovHC} from the \code{sandwich} package is accepted
+#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1451,7 +1532,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' We assume that the GECM model estimated is well specified, free of residual autocorrelation, balanced, and meets other standard time-series qualities. Given that, to obtain inferences for the specified shock history, the user only needs a named vector of the x and y variables, as well as the order of the differencing. Internally, the GECM to ADL equivalences are used to calculate the GDRFs from the GECM
 #' @importFrom stats lm coef vcov qnorm
 #' @importFrom mpoly mp
-#' @importFrom sandwich vcovHC
+#' @importFrom sandwich sandwich vcovHC
 #' @importFrom car deltaMethod
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -1487,9 +1568,6 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
 	...) {
 
-	# Assign coefficients
-	the.coef <- coef(model)
-
 	########################################################################
 	# subfunctions for shared GDRF dummy check
 	########################################################################
@@ -1503,7 +1581,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 	########################################################################
 	gecm.dummy.checks(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl, 
 							x.vrbl.d.x, y.vrbl.d.y, x.d.vrbl.d.x, y.d.vrbl.d.y, 
-							inferences.x, inferences.y, the.coef, se.type, type = "GDRF")
+							inferences.x, inferences.y, model, se.type, type = "GDRF")
 
 	########################################################################
 	# specific to function: shock.history checks, assign shock.history, convert inferences to numeric, assign vcov, and replace _
@@ -1523,6 +1601,9 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 			stop("Invalid shock.history. shock.history must be one of pulse or step, or any as.numeric integer h representing the order of the GDRF")	
 		}
 	}
+
+	# Assign coefficients
+	the.coef <- coef(model)
 
 	# turn the shock.history into the argument h.order
 	h.order <- ifelse(shock.history %in% c("pulse", "impulse"), -1,
@@ -1548,8 +1629,16 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 		plot.d.x <- 0		
 	}
 
-	the.vcov <- vcovHC(model, type = se.type)
-
+	if(se.type=="const"){
+	  the.vcov <- vcov(model)
+	} else if (se.type %in% c("HC", "HC0")) {
+	  the.vcov <- sandwich(model)
+	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
+	  the.vcov <- vcovHC(model, type = se.type)
+	} else {
+	  the.vcov <- se.type
+	}
+		
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
 	mpoly.subber(env = environment())
@@ -1729,7 +1818,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 # ---------- (6.1) gecm.plot ----------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for a GECM(1,1) model, assuming the underlying model is in first differences (\code{x.vrbl.d.x} = \code{y.vrbl.d.y} = 0 and \code{x.d.vrbl.d.x} = \code{y.d.vrbl.d.y} = 1) and the user wants a marginal effect (the untransformed GDRF) and inferences about y in levels to a treatment applied to x in levels. (This is just a wrapper for \code{GDRF.gecm.plot} with simplifying assumptions)
-#' @param model the \code{lm} model containing the GECM estimates
+#' @param model a linear regression model in GECM form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
 #' @param x.vrbl a named numeric vector of the x variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param y.vrbl a named numeric vector of the (lagged) y variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param x.d.vrbl a named numeric vector of the x variables (of the higher level of differencing, usually first differences d = 1) and corresponding lag orders in the GECM model
@@ -1737,7 +1826,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 #' @param shock.history the desired shock history. \code{shock.history} determines the shock history (h) that will be applied to the independent variable. -1 represents a pulse. 0 represents a step. These can also be specified via \code{pulse} and \code{step}. For others, see Vande Kamp, Jordan, and Rajan. The default is \code{pulse}
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default is \code{const}, but any argument to \code{vcovHC} from the \code{sandwich} package is accepted
+#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1747,7 +1836,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 #' We assume that the GECM model estimated is well specified, free of residual autocorrelation, balanced, and meets other standard time-series qualities. Given that, to obtain inferences for the specified shock history, the user only needs a named vector of the x and y variables, as well as the order of the differencing. Internally, the GECM to ADL equivalences are used to calculate the GDRFs from the GECM
 #' @importFrom stats lm coef vcov
 #' @importFrom mpoly mp
-#' @importFrom sandwich vcovHC
+#' @importFrom sandwich sandwich vcovHC
 #' @importFrom car deltaMethod
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -1793,7 +1882,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 # ------- (7) interact.adl.plot -------- #
 ##########################################
 #' Plot the interaction in a single-equation time series model estimated via \code{lm}. 
-#' @param model the \code{lm} model containing the ADL estimates
+#' @param model a linear regression model in ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
 #' @param x.vrbl named numeric vector of the ``main'' x variables and corresponding lag orders in the ADL model
 #' @param z.vrbl named numeric vector of the ``moderating'' z variables and corresponding lag orders in the ADL model
 #' @param x.z.vrbl named numeric vector with the interaction variables and corresponding lag orders in the ADL model. IMPORTANT: enter the lag order that pertains to the ``main'' x variable. For instance, x_l_1_z (contemporaneous x times lagged z) would be 0 and l_1_x_z (lagged x times contemporaneous z) would be 1
@@ -1810,7 +1899,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @param z.vrbl.label the name of the moderating z variable, used in plotting
 #' @param dM.level significance level of the (cumulative) marginal effects, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the (cumulative) marginal effects (beginning at s = 0)
-#' @param se.type the type of standard error to extract from the model. The default is \code{const}, but any argument to \code{vcovHC} from the \code{sandwich} package is accepted
+#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
 #' @param return.data logical to return the raw calculated (cumulative) marginal effects as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized (cumulative) marginal effects as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the (cumulative) marginal effects as a list element under \code{formulae} (for the (cumulative) marginal effects) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1822,7 +1911,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @importFrom ggplot2 ggplot
 #' @importFrom mpoly mp
 #' @importFrom car deltaMethod
-#' @importFrom sandwich vcovHC
+#' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
 #' @importFrom grDevices hcl.colors hcl.pals palette.colors
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
@@ -1894,8 +1983,7 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,
 	...) {
 
-	# Assign coefficients
-	the.coef <- coef(model)
+
 	
 	# Dummy checks. Are all variables specified?
 	if(is.null(x.vrbl) | is.null(z.vrbl) | is.null(x.z.vrbl)) {
@@ -1932,27 +2020,65 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 		stop("x.z.vrbl should be a named vector with elements equal to lag orders of y and names equal to y variable names in model.")
 	}
 
-	# test whether se.type is in that for vcov
-	if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")						
+	# Does the model have a coef() method?
+	coef_method <- tryCatch(coef(model), error = function(e) NULL)
+
+	if (is.null(coef_method)) {
+	  stop("Invalid model. model does not have a valid coef() method.")
+	}
+	
+	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
+	if(length(se.type)==1){
+  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
+    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
+  		} else if if(se.type=="const"){     #Check if model has a vcov() method
+    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
+    
+   			if (is.null(vcov_method)) {
+    			stop("Invalid model. model does not have a valid vcov() method.")
+    		}
+    
+  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
+    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+
+  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
+    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
+    
+    		if (is.null(vcov_method)) {
+      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
+    		}
+		}
+    
+	} else { #Check and see if user provided a valid variance-covariance matrix
+  		if (!(is.matrix(se.type))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		} else if (dim(se.type)[1]!=length(coef(model))) {
+    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
+  		}
 	}
 	
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(x.vrbl) %in% names(coef(model)))) {
 		stop("x.vrbl not present in estimated model")
 	}
 
 	if(!is.null(y.vrbl)) {
-		if(!(all(names(y.vrbl) %in% names(the.coef)))) {
+		if(!(all(names(y.vrbl) %in% names(coef(model)))) {
 			stop("y.vrbl not present in estimated model")
 		}
 	}
 
-	if(!(all(names(z.vrbl) %in% names(the.coef)))) {
+	if(!(all(names(z.vrbl) %in% names(coef(model)))) {
 		stop("z.vrbl not present in estimated model")
 	}
 		
-	if(!(is.null(x.z.vrbl)) & !(all(names(x.z.vrbl) %in% names(the.coef)))) {
+	if(!(is.null(x.z.vrbl)) & !(all(names(x.z.vrbl) %in% names(coef(model)))) {
 		stop("x.z.vrbl not present in estimated model")
 	}	
 
@@ -1983,6 +2109,9 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 			}
 		}
 	}
+
+	# Assign coefficients
+	the.coef <- coef(model)
 	
 	# change h.order to reflect the shock.history
 	if(shock.history %in% c("impulse", "pulse")) {
@@ -1991,8 +2120,16 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 		h.order <- 0
 	}
 
-	the.vcov <- vcovHC(model, type = se.type)
-
+	if(se.type=="const"){
+	  the.vcov <- vcov(model)
+	} else if (se.type %in% c("HC", "HC0")) {
+	  the.vcov <- sandwich(model)
+	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
+	  the.vcov <- vcovHC(model, type = se.type)
+	} else {
+	  the.vcov <- se.type
+	}
+	
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
 	mpoly.subber(env = environment())
