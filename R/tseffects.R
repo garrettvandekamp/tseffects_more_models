@@ -18,12 +18,10 @@
 #   Changes to interact.adl.plot: 
 #    - line.options to axis.variable? (args s/z)
 #    - unify heatmap.colors and line.colors
-#   Time and Space:
+#   Nonlinear models:
 #    - glm()
 #    - tscount
 #    - spmle/ProbitSpatial
-#    - lme4
-#    - clustered standard errors from sandwich
 
 
 
@@ -117,6 +115,8 @@ NULL
 #		sandwich (for sandwich vcovHC)
 #		stats (for lm coef vcov)
 #		utils (for capture.output)
+#		insight (for get_parameters get_varcov get_modelmatrix model_info)
+
 
 ### Functions
 ## Not exported
@@ -328,58 +328,32 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 		}
 	}
 	
-	# is there a coef() method for the model?
-	coef_method <- tryCatch(coef(model), error = function(e) NULL)
-
-	if (is.null(coef_method)) {
-  		stop("Invalid model. model does not have a valid coef() method.")
+	#is it supported by the insight package?
+	if(!(is_model_supported(model))) {
+ 	 stop("invalid model. model is not supported by insight package.")
 	}
 
-	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
-	if(length(se.type)==1){
-  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if (se.type=="const"){     #Check if model has a vcov() method
-    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
-    
-   			if (is.null(vcov_method)) {
-    			stop("Invalid model. model does not have a valid vcov() method.")
-    		}
-    
-  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
-    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
+	varcov_error <- tryCatch(get_varcov(model, vcov = se.type), error = function(e) NULL)
 
-  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
-    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
-		}
-    
-	} else { #Check and see if user provided a valid variance-covariance matrix
-  		if (!(is.matrix(se.type))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=length(coef(model))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		}
+	if (is.null(varcov_error)) {
+ 	 stop("Invalid se.type. se.type must be one supported by the insight package.")
 	}
-	
+
+	#is it a linear model?
+	if(!(model_info(model)$link_function!="identity")) {
+  		stop("invalid model. tseffects does not currently support models that do not use the identity link function.")
+	}
+
+
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
-		stop("x.vrbl not present in estimated model")
+	if(!(all(names(x.vrbl) %in% names(get_parameters(model)[,1])))) {
+  		stop("x.vrbl not present in estimated model")
 	}
-	
+
 	if(!is.null(y.vrbl)) {
-		if(!(all(names(y.vrbl) %in% names(coef(model))))) {
-			stop("y.vrbl not present in estimated model")
-		}
+  		if(!(all(names(y.vrbl) %in% names(get_parameters(model)[,1])))) {
+    		stop("y.vrbl not present in estimated model")
+  		}
 	}
 }
 
@@ -499,65 +473,40 @@ gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl,
 	if(inferences.x != "levels" | inferences.y != "levels") {
 		stop("In a GECM, inferences regarding the ", counter.x.message, " of x on y are automatically recovered in levels")
 	}
-
-	# Does the model have a coef() method?
-	coef_method <- tryCatch(coef(model), error = function(e) NULL)
-
-	if (is.null(coef_method)) {
-	  stop("Invalid model. model does not have a valid coef() method.")
+	#is it supported by the insight package?
+	if(!(is_model_supported(model))) {
+ 	 stop("invalid model. model is not supported by insight package.")
 	}
-	
-	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
-	if(length(se.type)==1){
-  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if (se.type=="const"){     #Check if model has a vcov() method
-    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
-    
-   			if (is.null(vcov_method)) {
-    			stop("Invalid model. model does not have a valid vcov() method.")
-    		}
-    
-  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
-    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
 
-  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
-    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
-		}
-    
-	} else { #Check and see if user provided a valid variance-covariance matrix
-  		if (!(is.matrix(se.type))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=length(coef(model))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		}
+	varcov_error <- tryCatch(get_varcov(model, vcov = se.type), error = function(e) NULL)
+
+	if (is.null(varcov_error)) {
+ 	 stop("Invalid se.type. se.type must be one supported by the insight package.")
 	}
+
+	#is it a linear model?
+	if(!(model_info(model)$link_function!="identity")) {
+  		stop("invalid model. tseffects does not currently support models that do not use the identity link function.")
+	}
+
 
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
-		stop("x.vrbl not present in estimated model")
-	}
-	
-	if(!(all(names(y.vrbl) %in% names(coef(model))))) {
-		stop("y.vrbl not present in estimated model")
+	if(!(all(names(x.vrbl) %in% names(get_parameters(model)[,1])))) {
+  		stop("x.vrbl not present in estimated model")
 	}
 
-	if(!(all(names(x.d.vrbl) %in% names(coef(model))))) {
-		stop("x.d.vrbl not present in estimated model")
+	if(!is.null(y.vrbl)) {
+  		if(!(all(names(y.vrbl) %in% names(get_parameters(model)[,1])))) {
+    		stop("y.vrbl not present in estimated model")
+  		}
+	}				
+
+	if(!(all(names(x.d.vrbl) %in% names(get_parameters(model)[,1])))) {
+  		stop("x.d.vrbl not present in estimated model")
 	}
-	
-	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(coef(model))))) {
-		stop("y.d.vrbl not present in estimated model")
+
+	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(get_parameters(model)[,1])))) {
+ 	 stop("y.d.vrbl not present in estimated model")
 	}
 }
 
@@ -632,7 +581,8 @@ mpoly.subber <- function(env = environment()) {
 	)
 
 	# ignore (Intercept), since it contains () that do not matter and we don't want to replace them
-	model.names.noint <- names(coef(env$model))[names(coef(env$model)) != "(Intercept)"]
+	model.names <- get_parameters(model)[,1]
+	model.names.noint <- model.names[model.names != "(Intercept)"]
 
 	for(i in seq_along(patterns)) {
 		# if the pattern is not in the model coefficients
@@ -687,8 +637,8 @@ get.value <- function(var, prediction.values, model) {
 		return(prediction.values[[var]])
 	}
 	# else, take it from the model frame
-	if(var %in% names(model.frame(model))) {
-		val <- mean(model.frame(model)[[var]], na.rm = TRUE)
+	if(var %in% names(get_data(model))) {
+		val <- mean(get_data(model)[[var]], na.rm = TRUE)
 		warning(paste0(var, " not in prediction.values; mean of series used"))
 		return(val)
 	}
