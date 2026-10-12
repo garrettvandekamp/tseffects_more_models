@@ -115,7 +115,7 @@ NULL
 #		sandwich (for sandwich vcovHC)
 #		stats (for lm coef vcov)
 #		utils (for capture.output)
-#		insight (for get_parameters get_varcov get_modelmatrix model_info)
+#		insight (for get_parameters get_varcov get_data model_info)
 
 
 ### Functions
