@@ -256,6 +256,7 @@ GDRF.dummy.checks <- function(effect.type, prediction.values, baseline.y, baseli
 #' @param model the estimated ADL model
 #' @param se.type the type of standard error calculated
 #' @param type whether the effects are estimated in the context of a GDRF
+#' @importFrom insight is_model_supported get_varcov model_info get_parameters 
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
@@ -346,13 +347,13 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 
 
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(get_parameters(model)[,1])))) {
-  		stop("x.vrbl not present in estimated model")
+	if(!(all(names(x.vrbl) %in% get_parameters(model)[,1]))) {
+ 	 stop("x.vrbl not present in estimated model")
 	}
 
 	if(!is.null(y.vrbl)) {
-  		if(!(all(names(y.vrbl) %in% names(get_parameters(model)[,1])))) {
-    		stop("y.vrbl not present in estimated model")
+ 		if(!(all(names(y.vrbl) %in% get_parameters(model)[,1]))) {
+   		 stop("y.vrbl not present in estimated model")
   		}
 	}
 }
@@ -374,6 +375,7 @@ adl.dummy.checks <- function(x.vrbl, y.vrbl, d.x, d.y, inferences.x, inferences.
 #' @param model the estimated GECM model
 #' @param se.type the type of standard error calculated
 #' @param type whether the effects are estimated in the context of a GDRF
+#' @importFrom insight is_model_supported get_varcov model_info get_parameters 
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
@@ -489,23 +491,22 @@ gecm.dummy.checks <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl,
   		stop("invalid model. tseffects does not currently support models that do not use the identity link function.")
 	}
 
-
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(get_parameters(model)[,1])))) {
-  		stop("x.vrbl not present in estimated model")
+	if(!(all(names(x.vrbl) %in% get_parameters(model)[,1]))) {
+ 	 stop("x.vrbl not present in estimated model")
 	}
 
 	if(!is.null(y.vrbl)) {
-  		if(!(all(names(y.vrbl) %in% names(get_parameters(model)[,1])))) {
-    		stop("y.vrbl not present in estimated model")
+ 		if(!(all(names(y.vrbl) %in% get_parameters(model)[,1]))) {
+   		 stop("y.vrbl not present in estimated model")
   		}
-	}				
-
-	if(!(all(names(x.d.vrbl) %in% names(get_parameters(model)[,1])))) {
-  		stop("x.d.vrbl not present in estimated model")
 	}
 
-	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% names(get_parameters(model)[,1])))) {
+	if(!(all(names(x.d.vrbl) %in% get_parameters(model)[,1]))) {
+ 	 stop("x.d.vrbl not present in estimated model")
+	}
+
+	if(!(is.null(y.d.vrbl)) & !(all(names(y.d.vrbl) %in% get_parameters(model)[,1]))) {
  	 stop("y.d.vrbl not present in estimated model")
 	}
 }
@@ -566,6 +567,7 @@ what.to.return <- function(return.plot, return.formulae, return.data, plot.out, 
 ##########################################
 #' Replace characters that mpoly does not take with underscores
 #' @param env the environment with names to substitute. Defaults to the parent environment
+#' @importFrom insight get_parameters 
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
@@ -628,6 +630,7 @@ mpoly.subber <- function(env = environment()) {
 #' @param var the variable to establish a prediction value for
 #' @param prediction.values (possible) user-supplied list of values for variables
 #' @param model the model containing the dataframe for mean estimation if values are not user-supplied (and warn the user if we're taking the mean)
+#' @importFrom insight get_data
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
@@ -811,6 +814,9 @@ general.calculator <- function(d.x, d.y, h, limit, pulses) {
 #' @examples
 #' # ADL model with y in levels
 #' model.levels <- lm(y ~ x + l_1_x + l_1_y, data = toy.ts.interaction.data)
+#' model.levels.coef.df <- get_parameters(model.levels)
+#' model.levels.coef <- as.vector(model.levels.coef.df[,2])
+#' names(model.levels.coef) <- as.vector(model.levels.coef.df[,1])
 #'
 #' # set up formulae
 #' pulses.levels <- pulse.calculator(x.vrbl = c("x" = 0, "l_1_x" = 1),
@@ -821,26 +827,29 @@ general.calculator <- function(d.x, d.y, h, limit, pulses) {
 #' # I(0) y: steady state from means (warns about differenced variables)
 #' #  Note this would mean different values for x and l_1_x, which might be undesirable
 #' yhat.calculator(formulae = general.levels$formulae, d.y = 0,
-#' 	model = model.levels, the.coef = coef(model.levels),
+#' 	model = model.levels, the.coef = model.levels.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	prediction.values = NULL, baseline.y = 0, shock.size = 1)
 #'
 #' # I(0) y: steady state from supplied prediction.values (same values for both x/l_1_x)
 #' yhat.calculator(formulae = general.levels$formulae, d.y = 0,
-#' 	model = model.levels, the.coef = coef(model.levels),
+#' 	model = model.levels, the.coef = model.levels.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	prediction.values = list("x" = 1, "l_1_x" = 1),
 #' 	baseline.y = NULL, shock.size = 1)
 #'
 #' # I(0) y: user-supplied baseline.y overrides prediction.values
 #' yhat.calculator(formulae = general.levels$formulae, d.y = 0,
-#' 	model = model.levels, the.coef = coef(model.levels),
+#' 	model = model.levels, the.coef = model.levels.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	prediction.values = list("x" = 0, "l_1_x" = 1),
 #' 	baseline.y = 5, shock.size = 1)
 #'
 #' # ADL model with differenced y
 #' model.diffs <- lm(d_y ~ x + l_1_x + l_1_d_y, data = toy.ts.interaction.data)
+#' model.diffs.coef.df <- get_parameters(model.diffs)
+#' model.diffs.coef <- as.vector(model.diffs.coef.df[,2])
+#' names(model.diffs.coef) <- as.vector(model.diffs.coef.df[,1])
 #'
 #' # set up formulae
 #' pulses.diffs <- pulse.calculator(x.vrbl = c("x" = 0, "l_1_x" = 1),
@@ -852,32 +861,32 @@ general.calculator <- function(d.x, d.y, h, limit, pulses) {
 #' # inferences in differences, baseline.y != 0. warn that this makes no sense (implies the
 #' #  model is always changing) and change baseline.y to 0
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "differences",
 #' 	baseline.y = 3, shock.size = 1)
 #' 	
 #' # inferences in differences, shock size of 1: identical to marginal effect (warns)
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "differences",
 #' 	baseline.y = NULL, shock.size = 1)
 #'
 #' # inferences in differences, shock size of 2: scales the marginal effect
 #' #  Since we're asking for inferences.y in differences, the baseline will automatically be 0
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "differences",
 #' 	baseline.y = NULL, shock.size = 2)
 #'
 #' # inferences in levels with no baseline.y: stops with an error
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	baseline.y = NULL, shock.size = 2)
 #'
 #' # inferences in levels with prediction.values but no baseline.y: warns and stops
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	prediction.values = list("x" = 1, "l_1_x" = 1),
 #' 	baseline.y = NULL, shock.size = 2)
@@ -885,7 +894,7 @@ general.calculator <- function(d.x, d.y, h, limit, pulses) {
 #'
 #' # inferences in levels with a supplied baseline
 #' yhat.calculator(formulae = general.diffs$formulae, d.y = 1,
-#' 	model = model.diffs, the.coef = coef(model.diffs),
+#' 	model = model.diffs, the.coef = model.diffs.coef,
 #' 	y.vrbl = c("l_1_y" = 1), inferences.y = "levels",
 #' 	prediction.values = list("x" = 1, "l_1_x" = 1),
 #' 	baseline.y = 5, shock.size = 2)
@@ -1099,6 +1108,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 #' @importFrom car deltaMethod
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
+#' @importFrom insight get_varcov get_parameters 
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords ADL plot GDRF
@@ -1150,7 +1160,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL, d.y = NULL,
 	shock.history = "pulse", inferences.y = "levels", inferences.x = "levels",
 	effect.type = "marginal", prediction.values = NULL, baseline.y = NULL, baseline.y.se = 0, shock.size = 1,  # these are new for the yhats
-	dM.level = 0.95, s.limit = 20, se.type = "const",
+	dM.level = 0.95, s.limit = 20, se.type = NULL,
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
 	...) {
 	
@@ -1184,7 +1194,9 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 	}
 
 	# Assign coefficients
-	the.coef <- coef(model)
+	the.coef.df <- get_parameters(model)
+	the.coef <- as.vector(the.coef.df[,2])
+	names(the.coef) <- as.vector(the.coef.df[,1])
 
 	# turn the shock.history into the argument h.order
 	h.order <- ifelse(shock.history %in% c("pulse", "impulse"), -1,
@@ -1209,15 +1221,7 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 		plot.d.x <- 0		
 	}
 	
-	if(se.type=="const"){
-	  the.vcov <- vcov(model)
-	} else if (se.type %in% c("HC", "HC0")) {
-	  the.vcov <- sandwich(model)
-	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
-	  the.vcov <- vcovHC(model, type = se.type)
-	} else {
-	  the.vcov <- se.type
-	}
+	the.vcov <- get_varcov(model, vcov = se.type)
 		
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
@@ -1414,6 +1418,7 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 #' @importFrom car deltaMethod
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
+#' @importFrom insight get_varcov get_parameters 
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords ADL plot
@@ -1435,7 +1440,7 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 
 adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
                           shock.history = "pulse",
-                          dM.level = 0.95, s.limit = 20, se.type = "const",
+                          dM.level = 0.95, s.limit = 20, se.type = NULL,
                           return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
                           ...) {
                           	
@@ -1484,6 +1489,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @importFrom mpoly mp
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom car deltaMethod
+#' @importFrom insight get_varcov get_parameters 
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords GECM plot GDRF
@@ -1514,7 +1520,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 	x.d.vrbl = NULL, y.d.vrbl = NULL, x.d.vrbl.d.x = NULL, y.d.vrbl.d.y = NULL,
 	shock.history = "pulse", inferences.y = "levels", inferences.x = "levels",
 	effect.type = "marginal", prediction.values = NULL, baseline.y = NULL, baseline.y.se = 0, shock.size = 1,  # these are new for the yhats	
-	dM.level = 0.95, s.limit = 20, se.type = "const",
+	dM.level = 0.95, s.limit = 20, se.type = NULL,
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
 	...) {
 
@@ -1553,7 +1559,9 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 	}
 
 	# Assign coefficients
-	the.coef <- coef(model)
+	the.coef.df <- get_parameters(model)
+	the.coef <- as.vector(the.coef.df[,2])
+	names(the.coef) <- as.vector(the.coef.df[,1])
 
 	# turn the shock.history into the argument h.order
 	h.order <- ifelse(shock.history %in% c("pulse", "impulse"), -1,
@@ -1579,15 +1587,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 		plot.d.x <- 0		
 	}
 
-	if(se.type=="const"){
-	  the.vcov <- vcov(model)
-	} else if (se.type %in% c("HC", "HC0")) {
-	  the.vcov <- sandwich(model)
-	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
-	  the.vcov <- vcovHC(model, type = se.type)
-	} else {
-	  the.vcov <- se.type
-	}
+	the.vcov <- get_varcov(model, vcov = se.type)
 		
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
@@ -1788,6 +1788,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 #' @importFrom mpoly mp
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom car deltaMethod
+#' @importFrom insight get_parameters get_varcov
 #' @import ggplot2
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords GECM plot GDRF
@@ -1812,7 +1813,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
                            x.d.vrbl = NULL, y.d.vrbl = NULL,
                            shock.history = "pulse",
-                           dM.level = 0.95, s.limit = 20, se.type = "const",
+                           dM.level = 0.95, s.limit = 20, se.type = NULL,
                            return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,	
                            ...) {
   
@@ -1864,6 +1865,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
 #' @importFrom grDevices hcl.colors hcl.pals palette.colors
+#' @importFrom insight get_parameters get_varcov get_data
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords interaction plot
 #' @examples
@@ -1929,7 +1931,7 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	heatmap.colors = "Blue-Red", 
 	z.vals = NULL, s.vals = c(0, "LRM"), 
 	z.label.rounding = 3, z.vrbl.label = names(z.vrbl)[1],
-	dM.level = 0.95, s.limit = 20, se.type = "const",
+	dM.level = 0.95, s.limit = 20, se.type = NULL,
 	return.data = FALSE, return.plot = TRUE, return.formulae = FALSE,
 	...) {
 
@@ -1970,67 +1972,42 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 		stop("x.z.vrbl should be a named vector with elements equal to lag orders of y and names equal to y variable names in model.")
 	}
 
-	# Does the model have a coef() method?
-	coef_method <- tryCatch(coef(model), error = function(e) NULL)
-
-	if (is.null(coef_method)) {
-	  stop("Invalid model. model does not have a valid coef() method.")
+	#is it supported by the insight package?
+	if(!(is_model_supported(model))) {
+ 	 stop("invalid model. model is not supported by insight package.")
 	}
-	
-	# Is the se.type valid? If so, does the model have an appropriate method for that se.type?
-	if(length(se.type)==1){
-  		if(!(se.type %in% c("HC3", "const", "HC", "HC0", "HC1", "HC2", "HC4", "HC4m", "HC5"))) {
-    		stop("Invalid se.type. se.type must be an accepted type for the vcovHC() function from the sandwich package")
-  		} else if (se.type=="const"){     #Check if model has a vcov() method
-    		vcov_method <- tryCatch(vcov(model), error = function(e) NULL)
-    
-   			if (is.null(vcov_method)) {
-    			stop("Invalid model. model does not have a valid vcov() method.")
-    		}
-    
-  		} else if (se.type %in% c("HC", "HC0")) {  #Check if model has a sandwich() method
-    		vcov_method <- tryCatch(sandwich(model), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-     	 		stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
 
-  		} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) { #Check if model has a vcovHC() method
-    		vcov_method <- tryCatch(vcovHC(model, type = se.type), error = function(e) NULL)
-    
-    		if (is.null(vcov_method)) {
-      			stop("Invalid model. model does not have a valid sandwich() method from the sandwich package.")
-    		}
-		}
-    
-	} else { #Check and see if user provided a valid variance-covariance matrix
-  		if (!(is.matrix(se.type))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=dim(se.type)[2]) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		} else if (dim(se.type)[1]!=length(coef(model))) {
-    		stop("Invalid se.type. se.type must be a square matrix with the same dimensions as the coefficient vector generated from the model")
-  		}
+	varcov_error <- tryCatch(get_varcov(model, vcov = se.type), error = function(e) NULL)
+
+	if (is.null(varcov_error)) {
+ 	 stop("Invalid se.type. se.type must be one supported by the insight package.")
 	}
-	
+
+	#is it a linear model?
+	if(!(model_info(model)$link_function!="identity")) {
+  		stop("invalid model. tseffects does not currently support models that do not use the identity link function.")
+	}
+
 	# are the variables in the model?
-	if(!(all(names(x.vrbl) %in% names(coef(model))))) {
-		stop("x.vrbl not present in estimated model")
+	if(!(all(names(x.vrbl) %in% get_parameters(model)[,1]))) {
+ 	 stop("x.vrbl not present in estimated model")
 	}
 
 	if(!is.null(y.vrbl)) {
-		if(!(all(names(y.vrbl) %in% names(coef(model))))) {
-			stop("y.vrbl not present in estimated model")
-		}
+ 		if(!(all(names(y.vrbl) %in% get_parameters(model)[,1]))) {
+   		 stop("y.vrbl not present in estimated model")
+  		}
 	}
 
-	if(!(all(names(z.vrbl) %in% names(coef(model))))) {
-		stop("z.vrbl not present in estimated model")
+	if(!(all(names(z.vrbl) %in% get_parameters(model)[,1]))) {
+ 	 stop("z.vrbl not present in estimated model")
 	}
-		
-	if(!(is.null(x.z.vrbl)) & !(all(names(x.z.vrbl) %in% names(coef(model))))) {
-		stop("x.z.vrbl not present in estimated model")
-	}	
+
+	if(!is.null(x.z.vrbl)) {
+ 		if(!(all(names(x.z.vrbl) %in% get_parameters(model)[,1]))) {
+   		 stop("x.z.vrbl not present in estimated model")
+  		}
+	}
 
 	# Dummy checks specific to interact: shock.history/plot.type
 	if(is.null(shock.history)) {
@@ -2061,7 +2038,9 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	}
 
 	# Assign coefficients
-	the.coef <- coef(model)
+	the.coef.df <- get_parameters(model)
+	the.coef <- as.vector(the.coef.df[,2])
+	names(the.coef) <- as.vector(the.coef.df[,1])
 	
 	# change h.order to reflect the shock.history
 	if(shock.history %in% c("impulse", "pulse")) {
@@ -2070,16 +2049,8 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 		h.order <- 0
 	}
 
-	if(se.type=="const"){
-	  the.vcov <- vcov(model)
-	} else if (se.type %in% c("HC", "HC0")) {
-	  the.vcov <- sandwich(model)
-	} else if (se.type %in% c("HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")) {
-	  the.vcov <- vcovHC(model, type = se.type)
-	} else {
-	  the.vcov <- se.type
-	}
-	
+	the.vcov <- get_varcov(model, vcov = se.type)
+
 	# mpoly does not play nicely with _, (, ), ,, or  . all are typically found in dynlm objects
 	#  We have to replace and warn	
 	mpoly.subber(env = environment())
@@ -2103,7 +2074,7 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	}
 
 	# establish z.vals. if it's an interactive model
-	the.z <- model.frame(model)[names(z.vrbl)[1]]
+	the.z <- get_data(model)[names(z.vrbl)[1]]
 	
 	# useful later for defaults: z +/- 1sd (for discrete values) or 2 (for a range)
 	potential.zline.limits <- c((mean(the.z[,1], na.rm = TRUE) - sd(the.z[,1], na.rm = TRUE)), (mean(the.z[,1], na.rm = TRUE) + sd(the.z[,1], na.rm = TRUE)))
