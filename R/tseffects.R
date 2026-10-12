@@ -1083,7 +1083,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 # --------- (5) GDRF.adl.plot -----------#
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for an autoregressive distributed lag (ADL) model
-#' @param model a linear regression model in (differenced) ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
+#' @param model a linear regression model in (differenced) ADL form. Any model supported by the \code{insight} package can be used.
 #' @param x.vrbl a named numeric vector in which the names correspond to an independent variable and its lags and the numbers correspond to the specific lag order of each variable
 #' @param y.vrbl a named numeric vector in which the names correspond to lags of the dependent variable and the numbers correspond to the specific lag order of each variable. Can be \code{NULL} if the model has no lagged dependent variables
 #' @param d.x an integer describing how many times the independent variable was differenced before model estimation
@@ -1098,7 +1098,7 @@ gecm.to.adl <- function(x.vrbl, y.vrbl, x.d.vrbl, y.d.vrbl) {
 #' @param shock.size the size of the shock to x in the units of x. Only used when \code{effect.type = "fitted"}; marginal effects are not scaled. Defaults to 1 (a marginal effect)
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
+#' @param se.type a string for the type of standard error to extract from the model. The default is to simply return classical standard errors, while invoking this argument results in some form of robust standard errors. For example, "HC0" calculates White's heteroskedasticity-consistent robust standard errors. se.type accepts any argument accepted by get_varcov in the \code{insight} package; see that package for more details.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1402,13 +1402,13 @@ GDRF.adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, d.x = NULL
 # ----------- (5.1) adl.plot ----------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for an autoregressive distributed lag (ADL) model, assuming the underlying model is in levels (\code{d.x} = \code{d.y} = 0) and the user wants a marginal effect (the untransformed GDRF). (This is just a wrapper for \code{GDRF.adl.plot} with simplifying assumptions)
-#' @param model a linear regression model in ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
+#' @param model a linear regression model in ADL form. Any model supported by the \code{insight} package can be used.
 #' @param x.vrbl a named numeric vector in which the names correspond to an independent variable and its lags and the numbers correspond to the specific lag order of each variable
 #' @param y.vrbl a named numeric vector in which the names correspond to lags of the dependent variable and the numbers correspond to the specific lag order of each variable. Can be \code{NULL} if the model has no lagged dependent variables
 #' @param shock.history the desired shock history. \code{shock.history} determines the shock history (h) (which can be expressed as an integer) that will be applied to the independent variable. -1 represents a pulse (Impulse Response Function). 0 represents a step (Step Response Function). These can also be specified via \code{pulse} and \code{step}. For others, see Vande Kamp, Jordan, and Rajan. The default is \code{pulse}
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
+#' @param se.type a string for the type of standard error to extract from the model. The default is to simply return classical standard errors, while invoking this argument results in some form of robust standard errors. For example, "HC0" calculates White's heteroskedasticity-consistent robust standard errors. se.type accepts any argument accepted by get_varcov in the \code{insight} package; see that package for more details.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1458,7 +1458,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 # -------- (6) GDRF.gecm.plot ---------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for a Generalized Error Correction Model (GECM)
-#' @param model a linear regression model in GECM form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
+#' @param model a linear regression model in GECM form. Any model supported by the \code{insight} package can be used.
 #' @param x.vrbl a named numeric vector of the x variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param y.vrbl a named numeric vector of the (lagged) y variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param x.vrbl.d.x the order of differencing of the x variable (of the lower level of differencing, usually in levels d = 0) in the GECM model
@@ -1477,7 +1477,7 @@ adl.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @param shock.size the size of the shock to x in the units of x. Only used when \code{effect.type = "fitted"}; marginal effects are not scaled. Defaults to 1 (a marginal effect)
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
+#' @param se.type a string for the type of standard error to extract from the model. The default is to simply return classical standard errors, while invoking this argument results in some form of robust standard errors. For example, "HC0" calculates White's heteroskedasticity-consistent robust standard errors. se.type accepts any argument accepted by get_varcov in the \code{insight} package; see that package for more details.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1768,7 +1768,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 # ---------- (6.1) gecm.plot ----------- #
 ##########################################
 #' Evaluate (and possibly plot) the General Dynamic Response Function (GDRF) for a GECM(1,1) model, assuming the underlying model is in first differences (\code{x.vrbl.d.x} = \code{y.vrbl.d.y} = 0 and \code{x.d.vrbl.d.x} = \code{y.d.vrbl.d.y} = 1) and the user wants a marginal effect (the untransformed GDRF) and inferences about y in levels to a treatment applied to x in levels. (This is just a wrapper for \code{GDRF.gecm.plot} with simplifying assumptions)
-#' @param model a linear regression model in GECM form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
+#' @param model a linear regression model in GECM form. Any model supported by the \code{insight} package can be used.
 #' @param x.vrbl a named numeric vector of the x variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param y.vrbl a named numeric vector of the (lagged) y variables (of the lower level of differencing, usually in levels d = 0) and corresponding lag orders in the GECM model
 #' @param x.d.vrbl a named numeric vector of the x variables (of the higher level of differencing, usually first differences d = 1) and corresponding lag orders in the GECM model
@@ -1776,7 +1776,7 @@ GDRF.gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL, x.vrbl.d.
 #' @param shock.history the desired shock history. \code{shock.history} determines the shock history (h) that will be applied to the independent variable. -1 represents a pulse. 0 represents a step. These can also be specified via \code{pulse} and \code{step}. For others, see Vande Kamp, Jordan, and Rajan. The default is \code{pulse}
 #' @param dM.level a numeric significance level of the GDRF, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the GDRF (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
+#' @param se.type a string for the type of standard error to extract from the model. The default is to simply return classical standard errors, while invoking this argument results in some form of robust standard errors. For example, "HC0" calculates White's heteroskedasticity-consistent robust standard errors. se.type accepts any argument accepted by get_varcov in the \code{insight} package; see that package for more details.
 #' @param return.data logical to return the raw calculated GDRFs as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized GDRFs as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the GDRFs as a list element under \code{formulae} (for the GDRFs) and \code{binomials} (for the shock history). The default is \code{FALSE}
@@ -1833,7 +1833,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 # ------- (7) interact.adl.plot -------- #
 ##########################################
 #' Plot the interaction in a single-equation time series model estimated via \code{lm}. 
-#' @param model a linear regression model in ADL form. While written with \code{lm} in mind, any linear model with valid \code{coef} and \code{vcov} methods will work when creating marginal effect plots. For predicted value plots, a valid \code{model.frame} method may also be required.
+#' @param model a linear regression model in ADL form. Any model supported by the \code{insight} package can be used.
 #' @param x.vrbl named numeric vector of the ``main'' x variables and corresponding lag orders in the ADL model
 #' @param z.vrbl named numeric vector of the ``moderating'' z variables and corresponding lag orders in the ADL model
 #' @param x.z.vrbl named numeric vector with the interaction variables and corresponding lag orders in the ADL model. IMPORTANT: enter the lag order that pertains to the ``main'' x variable. For instance, x_l_1_z (contemporaneous x times lagged z) would be 0 and l_1_x_z (lagged x times contemporaneous z) would be 1
@@ -1850,7 +1850,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @param z.vrbl.label the name of the moderating z variable, used in plotting
 #' @param dM.level significance level of the (cumulative) marginal effects, calculated by the delta method. The default is 0.95
 #' @param s.limit an integer for the number of periods to determine the (cumulative) marginal effects (beginning at s = 0)
-#' @param se.type a string for the type of standard error to extract from the model. The default, \code{const}, produces classical standard errors. \code{HC} produces heteroskedastic consistent (robust) standard errors, assuming the model is compatible with the \code{sandwich} package. Other values from the \code{type} argument from the \code{vcovHC} function are also accepted, though typically restricted to the \code{lm} function. Finally, user-generated variance-covariance matrices are also accepted.
+#' @param se.type a string for the type of standard error to extract from the model. The default is to simply return classical standard errors, while invoking this argument results in some form of robust standard errors. For example, "HC0" calculates White's heteroskedasticity-consistent robust standard errors. se.type accepts any argument accepted by get_varcov in the \code{insight} package; see that package for more details.
 #' @param return.data logical to return the raw calculated (cumulative) marginal effects as a list element under \code{estimates}. The default is \code{FALSE}
 #' @param return.plot logical to return the visualized (cumulative) marginal effects as a list element under \code{plot}. The default is \code{TRUE}
 #' @param return.formulae logical to return the formulae for the (cumulative) marginal effects as a list element under \code{formulae} (for the (cumulative) marginal effects) and \code{binomials} (for the shock history). The default is \code{FALSE}
