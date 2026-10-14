@@ -115,7 +115,7 @@ NULL
 #		sandwich (for sandwich vcovHC)
 #		stats (for lm coef vcov)
 #		utils (for capture.output)
-#		insight (for get_parameters get_varcov get_data model_info is_model_supported)
+#		insight (for get_parameters get_varcov get_modelmatrix model_info is_model_supported)
 
 
 ### Functions
@@ -630,7 +630,7 @@ mpoly.subber <- function(env = environment()) {
 #' @param var the variable to establish a prediction value for
 #' @param prediction.values (possible) user-supplied list of values for variables
 #' @param model the model containing the dataframe for mean estimation if values are not user-supplied (and warn the user if we're taking the mean)
-#' @importFrom insight get_data
+#' @importFrom insight get_modelmatrix
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords internal
 
@@ -640,8 +640,8 @@ get.value <- function(var, prediction.values, model) {
 		return(prediction.values[[var]])
 	}
 	# else, take it from the model frame
-	if(var %in% names(get_data(model))) {
-		val <- mean(get_data(model)[[var]], na.rm = TRUE)
+	if(var %in% names(as.data.frame(get_modelmatrix(model)))) {
+		val <- mean(as.data.frame(get_modelmatrix(model))[[var]], na.rm = TRUE)
 		warning(paste0(var, " not in prediction.values; mean of series used"))
 		return(val)
 	}
@@ -1865,7 +1865,7 @@ gecm.plot <- function(model = NULL, x.vrbl = NULL, y.vrbl = NULL,
 #' @importFrom sandwich sandwich vcovHC
 #' @importFrom utils capture.output
 #' @importFrom grDevices hcl.colors hcl.pals palette.colors
-#' @importFrom insight get_parameters get_varcov get_data
+#' @importFrom insight get_parameters get_varcov get_modelmatrix
 #' @author Soren Jordan, Garrett N. Vande Kamp, and Reshi Rajan
 #' @keywords interaction plot
 #' @examples
@@ -2074,7 +2074,7 @@ interact.adl.plot <- function(model = NULL, x.vrbl = NULL, z.vrbl = NULL, x.z.vr
 	}
 
 	# establish z.vals. if it's an interactive model
-	the.z <- get_data(model)[names(z.vrbl)[1]]
+	the.z <- as.data.frame(get_modelmatrix(model))[names(z.vrbl)[1]]
 	
 	# useful later for defaults: z +/- 1sd (for discrete values) or 2 (for a range)
 	potential.zline.limits <- c((mean(the.z[,1], na.rm = TRUE) - sd(the.z[,1], na.rm = TRUE)), (mean(the.z[,1], na.rm = TRUE) + sd(the.z[,1], na.rm = TRUE)))
